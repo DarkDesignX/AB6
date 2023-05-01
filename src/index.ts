@@ -1,10 +1,12 @@
 import { Database } from "./database";
 import { Bank } from "./bank/bank";
+import express, { Express, Request, Response } from "express";
 
 async function main() {
   const db = new Database();
   const bank = new Bank(db);
-  await bank.loadAccounts();
+
+  const app: Express = express();
   // Remove old accounts
   await bank.removeAccounts();
   // Create new accounts
@@ -15,43 +17,21 @@ async function main() {
   // Show accounts
   const account1 = bank.accounts[0];
   const account2 = bank.accounts[1];
-  console.log("Initial accounts");
-  await bank.showAccounts();
-  // Do transaction
-  await bank.transaction(
-    account1.accountNumber,
-    account2.accountNumber,
-    1000,
-    1234
-  );
-  console.log("After Successfull Transaction");
-  await bank.showAccounts();
-  // Do transaction (error due to insufficient funds)
-  await bank.transaction(
-    account1.accountNumber,
-    account2.accountNumber,
-    1500,
-    1234
-  );
-  console.log("After Failed Transaction");
-  await bank.showAccounts();
-  // Do transaction with negative amount (error)
-  await bank.transaction(
-    account1.accountNumber,
-    account2.accountNumber,
-    -1000,
-    1234
-  );
-  console.log("After Failed Transaction");
-  await bank.showAccounts();
-  // Do transaction with wrong pincode (error)
-  await bank.transaction(account1.accountNumber, 0, 1000, 1234);
-  console.log("After Failed Transaction");
-  await bank.showAccounts();
-  // Load accounts from database
-  await bank.loadAccounts();
-  console.log("After loading accounts from database");
-  await bank.showAccounts();
+
+  let fromTo = [account1, account2];
+  const randomTransaction = (req: Request, res: Response) => {
+    const from = fromTo[0];
+    const to = fromTo[1];
+    bank.transaction(from.accountNumber, to.accountNumber, 1000, from.pincode);
+    fromTo = [to, from];
+    res.status(200).json({ account1, account2 });
+  };
+
+  app.get("/transactions", randomTransaction);
+
+  app.listen(3000, () => {
+    console.log("Server is running on port 3000");
+  });
 }
 
 main();
